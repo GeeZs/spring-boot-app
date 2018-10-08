@@ -1,14 +1,11 @@
 package com.cheshire.domain;
 
-import org.jboss.logging.FormatWith;
-
 import javax.persistence.*;
 
 @Entity
 public class Message {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
 
     private String text;
