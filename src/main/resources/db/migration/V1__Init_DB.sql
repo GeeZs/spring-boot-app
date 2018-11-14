@@ -26,10 +26,8 @@ create table usr (
 
 alter table if exists message
     add constraint message_user_fk
-    foreign key (user_id)
-    references usr;
+    foreign key (user_id) references usr;
 
 alter table if exists user_role
     add constraint user_role_user_fk
-    foreign key (user_id)
-    references usr;
+    foreign key (user_id) references usr;
