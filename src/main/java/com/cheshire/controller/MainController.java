@@ -5,6 +5,11 @@ import com.cheshire.domain.User;
 import com.cheshire.repos.MessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,13 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.validation.Valid;
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Controller
 public class MainController {
-
     @Autowired
     private MessageRepository messageRepository;
 
@@ -38,16 +40,23 @@ public class MainController {
     }
 
     @GetMapping("/main")
-    public String main(@RequestParam(required = false, defaultValue = "") String filter, Model model){
-        Iterable<Message> messages;
+    public String main(
+            @RequestParam(required = false, defaultValue = "") String filter,
+            Model model,
+            @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable
+    ){
+        Page<Message> page;
 
         if (filter != null && !filter.isEmpty()) {
-            messages = messageRepository.findByTag(filter);
+            page = messageRepository.findByTag(filter, pageable);
         }else {
-            messages = messageRepository.findAll();
+            page = messageRepository.findAll(pageable);
         }
-        model.addAttribute("messages", messages);
+
+        model.addAttribute("url", "/main");
+        model.addAttribute("page", page);
         model.addAttribute("filter", filter);
+
         return "main";
     }
 
@@ -57,7 +66,9 @@ public class MainController {
             @Valid Message message,
             BindingResult bindingResult,
             @RequestParam("file") MultipartFile file,
-            Model model) throws IOException {
+            Model model,
+            @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable
+    ) throws IOException {
         message.setAuthor(user);
 
         if (bindingResult.hasErrors()){
@@ -72,9 +83,11 @@ public class MainController {
 
             messageRepository.save(message);
         }
-        Iterable<Message> messages = messageRepository.findAll();
 
-        model.addAttribute("messages", messages);
+        Page<Message> page = messageRepository.findAll(pageable);
+
+        model.addAttribute("url", "/main");
+        model.addAttribute("page", page);
 
         return "main";
     }
@@ -91,6 +104,7 @@ public class MainController {
             String resultFilename = uuidFile + "." + file.getOriginalFilename();
 
             file.transferTo(new File(uploadPath + "/" + resultFilename));
+
             message.setFilename(resultFilename);
         }
     }
@@ -102,13 +116,14 @@ public class MainController {
             Model model,
             @RequestParam(required = false) Message message
     ){
-        Set<Message> messages = user.getMessages();
+        Page<Message> page = new PageImpl<Message>(new ArrayList<>(user.getMessages()));
 
+        model.addAttribute("url", "/userMessages");
         model.addAttribute("userChannel", user);
         model.addAttribute("isSubscriber", user.getSubscribers().contains(currentUser));
         model.addAttribute("subscriptionsCount", user.getSubscriptions().size());
         model.addAttribute("subscribersCount", user.getSubscribers().size());
-        model.addAttribute("messages", messages);
+        model.addAttribute("page", page);
         model.addAttribute("message", message);
         model.addAttribute("isCurrentUser", currentUser.equals(user));
 
@@ -128,6 +143,7 @@ public class MainController {
             if (!StringUtils.isEmpty(text)){
                 message.setText(text);
             }
+
             if (!StringUtils.isEmpty(tag)){
                 message.setTag(tag);
             }
